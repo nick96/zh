@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"strconv"
@@ -154,7 +155,58 @@ func MoveIssueCommand(ctx *cli.Context) error {
 		return fmt.Errorf("failed to move issue between pipelines: %w", err)
 	}
 
-	fmt.Printf("Successfully moved issue %d to pipelines %s\n", issueID, pipelineID)
+	fmt.Printf("Successfully moved issue %d to pipeline %s\n", issueID, pipelineID)
+
+	return nil
+}
+
+
+// ListBoardCommand is the CLI command action for listing the contents
+// (pipelines) for board.
+func ListBoardCommand(ctx *cli.Context) error {
+	workspaceID := ctx.String("workspace-id")
+	if workspaceID == "" {
+		return fmt.Errorf("invalid workpace-id value of %s", workspaceID)
+	}
+
+	repositoryID := ctx.Uint("repository-id")
+	if repositoryID == 0 {
+		return fmt.Errorf("invalid repository-id value of %d", repositoryID)
+	}
+	url := fmt.Sprintf(
+		"%s/p2/workspaces/%s/repositories/%d/board",
+		ctx.String("base-url"),
+		workspaceID,
+		repositoryID,
+	)
+	logrus.WithField("url", url).Debug("Sending list board request")
+
+	token, err := GetZenHubToken()
+	if err != nil {
+		return err
+	}
+
+	client := http.Client{
+		Transport: &AuthenticationTransport{
+			transport:           http.DefaultTransport,
+			authenticationToken: token,
+		},
+	}
+	resp, err := client.Get(url)
+	if err != nil {
+		return fmt.Errorf("failed to list board: %w", err)
+	}
+
+	if err := ErrorFromStatusCode(resp.StatusCode); err != nil {
+		return fmt.Errorf("failed to list board: %w", err)
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read body of list board response")
+	}
+	defer resp.Body.Close()
+	fmt.Println(string(body))
 
 	return nil
 }
@@ -219,6 +271,17 @@ func main() {
 						Name:   "mv",
 						Usage:  "Move an issue between pipelines",
 						Action: MoveIssueCommand,
+					},
+				},
+			},
+			{
+				Name:  "board",
+				Usage: "Work with boards",
+				Subcommands: []*cli.Command{
+					{
+						Name:   "ls",
+						Usage:  "List all the pipelines in the board",
+						Action: ListBoardCommand,
 					},
 				},
 			},

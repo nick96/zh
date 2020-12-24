@@ -211,6 +211,28 @@ func ListBoardCommand(ctx *cli.Context) error {
 	return nil
 }
 
+func LinkIssueCommand(ctx *cli.Context) error {
+	if ctx.NArg() != 2 {
+		return fmt.Errorf("expected exactly two arguments, issue and PR IDs, received %d", ctx.NArg())
+	}
+
+	issueID, err := strconv.Atoi(ctx.Args().First())
+	if err != nil {
+		return fmt.Errorf("invalid issue ID value '%s'", ctx.Args().First())
+	}
+
+	prID, err := strconv.Atoi(ctx.Args().Get(1))
+	if err != nil {
+		return fmt.Errorf("invalid PR ID value '%s'", ctx.Args().Get(1))
+	}
+
+	url := fmt.Sprintf("%s/v4/repositories/%d/connection", ctx.Uint("respository-id"))
+	// request := LinkIssueRequest {
+	// 	IssueNumber: issueID, ConnectedRepoID
+	// }
+	return nil
+}
+
 func main() {
 	if err := dotenv.Load(); err != nil {
 		logrus.WithField("error", err).Warn("failed to load .env file in working directory")
@@ -272,6 +294,11 @@ func main() {
 						Usage:  "Move an issue between pipelines",
 						Action: MoveIssueCommand,
 					},
+					{
+						Name: "link",
+						Usage: "Link an issue to a pull request",
+						Action: LinkIssueCommand,
+					}
 				},
 			},
 			{
